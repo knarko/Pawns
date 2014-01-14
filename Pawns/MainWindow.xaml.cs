@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Data.Entity;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -14,33 +16,84 @@ using System.Diagnostics;
 
 namespace Pawns
 {
-    public class Pieces : ObservableCollection<Piece>
+    public class Gamestate
     {
-        public Pieces()
-        {
-            for (byte row = 6; row < 8; ++row)
-                for (byte col = 0; col < 8; ++col)
-                    Add(new Piece(PlayerColor.White, PieceType.Pawn, col, row));
+        public int GamestateId { get; set; }
+        public virtual ObservableCollection<Piece> pieces{get;set;}
+        public virtual PlayerColor currentPlayer { get; set; }
+        public Gamestate() { }
+    }
 
-            for (byte row = 0; row < 2; ++row)
-                for (byte col = 0; col < 8; ++col)
-                    Add(new Piece(PlayerColor.Black, PieceType.Pawn, col, row));
+    public class GamestateContext : DbContext
+    {
+        public DbSet<Gamestate> Gamestates { get; set; }
+        public DbSet<Piece> Pieces { get; set; }
+
+        protected override void OnModelCreating(DbModelBuilder modelBuilder)
+        {
+            modelBuilder
+                    .Configurations.Add(new Piece.PieceConfiguration());
+            base.OnModelCreating(modelBuilder);
         }
+
     }
 
     public partial class MainWindow : Window
     {
-        Pieces gameState = new Pieces();
+        Gamestate gameState;
         Piece movingPiece = null;
-        PlayerColor currentPlayer;
+        GamestateContext db;
         Point dragPoint;
+        bool newgame = false;
         
 
         public MainWindow()
         {
+            db = new GamestateContext();
             InitializeComponent();
-            ChessBoard.ItemsSource = gameState;
-            currentPlayer = PlayerColor.White;
+            
+            var query = (from b in db.Gamestates
+                        select b).ToList();
+
+            if (query.Count != 0)
+            {
+                gameState = query.First();
+                var msg = MessageBox.Show("Continue last game?","Game",MessageBoxButton.YesNo);
+                if (msg == MessageBoxResult.No)
+                {
+                    newgame = true;
+                }
+            }
+            else
+            {
+                newgame = true;
+            }
+
+            if(newgame ==true)
+            {
+                gameState = query.FirstOrDefault();
+                db.Gamestates.Remove(gameState);
+                if (db.Pieces.Count() > 0)
+                {
+                    var querypieces = (from b in db.Pieces
+                                       select b).ToList();
+
+                    db.Pieces.RemoveRange(querypieces);
+                }
+
+                db.SaveChanges();
+                gameState = new Gamestate() { };
+                gameState.pieces = new ObservableCollection<Piece>();
+                for (byte row = 6; row < 8; ++row)
+                    for (byte col = 0; col < 8; ++col)
+                        gameState.pieces.Add(new Piece(PlayerColor.White, PieceType.Pawn, col, row));
+                for (byte row = 0; row < 2; ++row)
+                    for (byte col = 0; col < 8; ++col)
+                        gameState.pieces.Add(new Piece(PlayerColor.Black, PieceType.Pawn, col, row));
+                db.Gamestates.Add(gameState);
+                gameState.currentPlayer = PlayerColor.White;
+            }
+            ChessBoard.ItemsSource = gameState.pieces;
         }
 
         private void ChessPiece_PreviewMouseDown(object sender, MouseButtonEventArgs e)
@@ -73,7 +126,7 @@ namespace Pawns
             var x = (byte)(e.GetPosition((Grid)sender).X / ((Grid)sender).ColumnDefinitions[0].ActualWidth);
             var y = (byte)(e.GetPosition((Grid)sender).Y / ((Grid)sender).RowDefinitions[0].ActualHeight);
 
-            if (Rules.isLegalMove(movingPiece, x, y, currentPlayer))
+            if (Rules.isLegalMove(movingPiece, x, y, gameState.currentPlayer))
             {
                 movePiece(x, y);
             }
@@ -83,9 +136,9 @@ namespace Pawns
         {
             e.Handled = true;
             Piece targetPiece = ((Piece)(((Image)sender).DataContext));
-            if (Rules.isLegalMove(movingPiece, targetPiece, currentPlayer))
+            if (Rules.isLegalMove(movingPiece, targetPiece, gameState.currentPlayer))
             {
-                gameState.Remove(targetPiece);
+                gameState.pieces.Remove(targetPiece);
                 movePiece(targetPiece.x, targetPiece.y);
             }
         }
@@ -94,7 +147,12 @@ namespace Pawns
         {
             movingPiece.x = x;
             movingPiece.y = y;
-            currentPlayer = (currentPlayer == PlayerColor.White) ? PlayerColor.Black : PlayerColor.White;
+            gameState.currentPlayer = (gameState.currentPlayer == PlayerColor.White) ? PlayerColor.Black : PlayerColor.White;
+        }
+
+        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            db.SaveChanges();
         }
     }
 }

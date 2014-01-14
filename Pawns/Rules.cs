@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Pawns
 {
-    class Rules
+    public class Rules
     {
         public static bool isLegalMove(Piece movingPiece, byte x, byte y, PlayerColor currentPlayer)
         {

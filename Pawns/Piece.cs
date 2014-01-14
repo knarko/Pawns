@@ -5,6 +5,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Data.Entity.ModelConfiguration;
+using System.Diagnostics;
 
 namespace Pawns
 {
@@ -23,11 +25,27 @@ namespace Pawns
     // ToDo?: Compare setter values to previous value for PropertyChanged
     public class Piece : INotifyPropertyChanged
     {
-        private PlayerColor playerColorValue;
-        private PieceType pieceTypeValue;
-        private byte xValue;
-        private byte yValue;
-        public bool hasMoved { get; private set; }
+        private PlayerColor playerColorValue {get;set;}
+        private PieceType pieceTypeValue { get; set; }
+        private byte xValue { get; set; }
+        private byte yValue { get; set; }
+        public bool hasMoved { get; set; }
+
+        public class PieceConfiguration : EntityTypeConfiguration<Piece>
+        {
+            public PieceConfiguration()
+            {
+                Property(p => p.playerColorValue);
+                Property(p => p.pieceTypeValue);
+                Property(p => p.xValue);
+                Property(p => p.yValue);
+                Property(p => p.hasMoved);
+                Ignore(p => p.x);
+                Ignore(p => p.y);
+            }
+        }
+
+        public Piece() { }
 
         public Piece(PlayerColor playerColor, PieceType pieceType, byte x, byte y)
         {
@@ -90,10 +108,13 @@ namespace Pawns
             }
             set
             {
+                Debug.WriteLine("y changed");
                 hasMoved = true;
                 yValue = value;
                 NotifyPropertyChanged();
             }
         }
+
+        public int PieceId { get; set; }
     }
 }

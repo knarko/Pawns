@@ -2,7 +2,8 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:Pawns"
-        Title="MainWindow" Height="525" Width="525">
+        Title="MainWindow" Height="525" Width="525"
+        Closing="Window_Closing">
 
     <Window.Resources>
         <DrawingBrush x:Key="ChessBoardBrush" Viewport="0,0,.25,.25" TileMode="Tile" Stretch="Fill">
